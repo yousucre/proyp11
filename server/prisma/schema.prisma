@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Solicitante {
+  id                    Int       @id @default(autoincrement())
+  tipo_identificacion   String
+  numero_identificacion String
+  nombre_completo       String
+  email                 String?
+  telefono              String?
+  direccion             String?
+  created_at            DateTime? @default(now())
+  pqrs                  PQR[]
+}
+
+model PQR {
+  id                Int          @id @default(autoincrement())
+  radicado          String       @unique
+  fecha_radicacion  DateTime     @default(now())
+  id_solicitante    Int
+  tipo_pqr          String
+  asunto            String
+  estado            String
+  fecha_vencimiento DateTime?
+  canal_recepcion   String?
+  adjunto_pdf       Bytes?
+  adjunto_nombre    String?
+  comprobante_pdf   Bytes?
+  solicitante       Solicitante  @relation(fields: [id_solicitante], references: [id])
+  actuaciones       Actuacion[]
+}
+
+model Expediente {
+  id                    Int                   @id @default(autoincrement())
+  numero_expediente     String
+  titulo                String
+  tipo                  String
+  fecha_apertura        DateTime              @default(now())
+  estado                String
+  descripcion           String?
+  documentos            ExpedienteDocumento[]
+  bitacora              ExpedienteBitacora[]
+}
+
+model Actuacion {
+  id              Int      @id @default(autoincrement())
+  id_pqr          Int
+  fecha_actuacion DateTime @default(now())
+  tipo_actuacion  String
+  observacion     String?
+  usuario         String?
+  adjunto_pdf     Bytes?
+  adjunto_nombre  String?
+  pqr             PQR      @relation(fields: [id_pqr], references: [id], onDelete: Cascade)
+}
+
+model ExpedienteDocumento {
+  id             Int        @id @default(autoincrement())
+  id_expediente  Int
+  fecha_subida   DateTime   @default(now())
+  nombre_archivo String
+  blob_archivo   Bytes
+  descripcion    String?
+  expediente     Expediente @relation(fields: [id_expediente], references: [id], onDelete: Cascade)
+}
+
+model TipoExpediente {
+  id     Int    @id @default(autoincrement())
+  nombre String
+}
+
+model OtraGestion {
+  id            Int      @id @default(autoincrement())
+  fecha         DateTime @default(now())
+  cedula        String
+  nombres       String
+  telefono      String
+  entidad       String
+  actividad     String
+  observaciones String?
+}
+
+model TipoActividad {
+  id     Int    @id @default(autoincrement())
+  nombre String
+}
+
+model ExpedienteBitacora {
+  id            Int        @id @default(autoincrement())
+  id_expediente Int
+  fecha         DateTime   @default(now())
+  accion        String
+  detalle       String
+  usuario       String?
+  adjunto_id    Int?
+  expediente    Expediente @relation(fields: [id_expediente], references: [id], onDelete: Cascade)
+}
+
+model QuickNote {
+  id             Int      @id @default(autoincrement())
+  texto          String
+  posicion       Int
+  fecha_creacion DateTime @default(now())
+}
+
+model SystemConfig {
+  id                Int     @id @default(autoincrement())
+  plazo_peticion    Int
+  plazo_queja       Int
+  plazo_reclamo     Int
+  plazo_recurso     Int
+  prefijo_radicado  String
+  backup_automatico Boolean
+  backup_frecuencia Int
+  recovery_email_1  String?
+  recovery_email_2  String?
+  first_setup_done  Boolean
+  entidad_logo      Bytes?
+  entidad_nombre    String?
+  entidad_email     String?
+  entidad_telefono  String?
+  entidad_whatsapp  String?
+  entidad_nit       String?
+  hashed_password   String?
+}
+
+model RecoveryToken {
+  id      Int      @id @default(autoincrement())
+  token   String   @unique
+  email   String
+  expires DateTime
+}
