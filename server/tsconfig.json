@@ -12,11 +12,9 @@
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
-<<<<<<< HEAD
         "forceConsistentCasingInFileNames": true,
-        "types": ["node"]
-=======
-        "forceConsistentCasingInFileNames": true
->>>>>>> 3f64e6da120dd682c477398310e28aa34f10a743
+        "types": [
+            "node"
+        ]
     }
 }
