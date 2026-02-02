@@ -24,12 +24,21 @@
     },
     "devDependencies": {
         "@types/bcryptjs": "^2.4.6",
+<<<<<<< HEAD
         "@types/cors": "^2.8.19",
         "@types/express": "^4.17.25",
         "@types/jsonwebtoken": "^9.0.10",
         "@types/multer": "^1.4.11",
         "@types/node": "^20.19.30",
         "@types/nodemailer": "^7.0.9",
+=======
+        "@types/cors": "^2.8.17",
+        "@types/express": "^4.17.21",
+        "@types/jsonwebtoken": "^9.0.5",
+        "@types/multer": "^1.4.11",
+        "@types/node": "^20.11.20",
+        "@types/nodemailer": "^7.0.5",
+>>>>>>> 3f64e6da120dd682c477398310e28aa34f10a743
         "prisma": "^5.10.2",
         "ts-node-dev": "^2.0.0",
         "typescript": "^5.3.3"
