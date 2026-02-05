@@ -2,7 +2,7 @@ import client from './client';
 
 export const authApi = {
     login: async (password: string) => {
-        const response = await client.post('/auth/login', { password });
+        const response = await client.post('/api/auth/login', { password });
         return response.data;
     },
     setup: async (data: any) => {
