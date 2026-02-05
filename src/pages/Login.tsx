@@ -46,7 +46,7 @@ export default function Login() {
         e.preventDefault();
         setError('');
 
-        if (await login(password)) {
+        if (await login(email, password)) {
             // Success! The useEffect will handle navigation if not first setup
         } else {
             setError('Contraseña incorrecta. Por favor intente de nuevo.');
