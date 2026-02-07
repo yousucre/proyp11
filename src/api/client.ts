@@ -1,7 +1,10 @@
+
 import axios from 'axios';
 
-const API_URL =
-  (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api';
+// Limpiamos la URL para evitar duplicados indeseados
+const base = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// Si la base ya termina en /api, la usamos; si no, se lo agregamos.
+const API_URL = base.endsWith('/api') ? base : `${base}/api`;
 
 const client = axios.create({
   baseURL: API_URL,
@@ -22,4 +25,3 @@ client.interceptors.request.use(
 );
 
 export default client;
-
