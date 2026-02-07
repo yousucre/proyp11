@@ -6,6 +6,18 @@ import { getLocalIpAddress } from './utils/ip';
 dotenv.config();
 
 const app = express();
+import cors from "cors";
+
+app.use(cors({
+  origin: [
+    "https://proyp11.web.app",
+    "https://proyp11.firebaseapp.com",
+    "http://localhost:5173"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+
 const PORT = process.env.PORT || 3000;
 
 const allowedOrigins = [

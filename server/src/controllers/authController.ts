@@ -3,7 +3,8 @@ import { prisma } from '../prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
+const JWT_SECRET = process.env.JWT_SECRET!;
+
 
 export const login = async (req: Request, res: Response) => {
     const { password } = req.body;
