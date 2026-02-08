@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, Table as TableIcon, Save, Edit2, Trash2, Settings, FileText, X, AlertCircle } from 'lucide-react';
+import { Plus, Table as TableIcon, Save, Edit2, Trash2, Settings, FileText, X, AlertCircle, Search, Calendar, Filter, Download, ArrowUp, ArrowDown } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { otraGestionApi } from '../api/otraGestion';
 import { OtraGestion, TipoActividad } from '../db/types';
 
@@ -24,8 +26,27 @@ export default function OtrasGestiones() {
 
     const [editingRecord, setEditingRecord] = useState<OtraGestion | null>(null);
 
+    // Filtros y Ordenamiento
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterDateStart, setFilterDateStart] = useState('');
+    const [filterDateEnd, setFilterDateEnd] = useState('');
+    const [filterActivity, setFilterActivity] = useState('');
+    const [sortBy, setSortBy] = useState<'fecha' | 'nombres' | 'entidad' | 'cedula'>('fecha');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    const [filteredCount, setFilteredCount] = useState(0);
+
     useEffect(() => {
-        loadData();
+        // Initial load only loads types, data load is handled by filter effect
+        const loadTypes = async () => {
+            try {
+                const tiposList = await otraGestionApi.getTiposActividad();
+                setTipos(tiposList || []);
+            } catch (tipoErr) {
+                console.error('Error cargando tipos de actividad:', tipoErr);
+            }
+        };
+        loadTypes();
+        // Trigger initial load via filter effect
     }, []);
 
     useEffect(() => {
@@ -40,24 +61,125 @@ export default function OtrasGestiones() {
             // Cargar tipos de actividad de forma independiente
             try {
                 const tiposList = await otraGestionApi.getTiposActividad();
-                console.log('Tipos de actividad cargados:', tiposList?.length);
                 setTipos(tiposList || []);
             } catch (tipoErr) {
                 console.error('Error cargando tipos de actividad:', tipoErr);
-                // No detenemos la carga si fallan los tipos
             }
 
-            // Cargar registros
-            console.log('Slicitando registros a la API...');
-            const data = await otraGestionApi.getAll();
+            // Cargar registros con filtros
+            const params = {
+                search: searchTerm,
+                startDate: filterDateStart,
+                endDate: filterDateEnd,
+                activity: filterActivity,
+                sortBy,
+                order: sortOrder
+            };
+
+            console.log('Solicitando registros a la API con params:', params);
+            const data = await otraGestionApi.getAll(params);
             console.log('Registros recibidos:', data?.length);
             setRecords(data || []);
+            setFilteredCount(data?.length || 0);
         } catch (err: any) {
             console.error('Error fatal detectado en loadData:', err);
             setError(`Error al conectar con el servidor: ${err.message || 'Error desconocido'}`);
         } finally {
             setLoading(false);
             console.log('--- Finaliza carga de datos ---');
+        }
+    };
+
+    // Efecto para recargar cuando cambian los filtros
+    useEffect(() => {
+        if (view === 'list') {
+            const timer = setTimeout(() => {
+                loadData();
+            }, 500); // Debounce para búsqueda
+            return () => clearTimeout(timer);
+        }
+    }, [searchTerm, filterDateStart, filterDateEnd, filterActivity, sortBy, sortOrder, view]);
+
+    const exportToPDF = async () => {
+        setLoading(true);
+        try {
+            const config = await otraGestionApi.getSystemConfig();
+            const doc = new jsPDF();
+
+            // Configuración de cabecera con logo si existe
+            if (config?.entidad_logo) {
+                // Si hay logo podrías añadirlo aquí, por ahora vamos con texto premium
+            }
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(20);
+            const title = config?.entidad_nombre || 'Reporte de Otras Gestiones';
+            doc.text(title, 105, 20, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(100);
+            doc.text(`Nit: ${config?.entidad_nit || 'N/A'} | Email: ${config?.entidad_email || 'N/A'}`, 105, 28, { align: 'center' });
+
+            doc.setDrawColor(200);
+            doc.line(14, 35, 196, 35);
+
+            doc.setFontSize(14);
+            doc.setTextColor(0);
+            doc.setFont("helvetica", "bold");
+            doc.text('Detalle de Actividades Registradas', 14, 45);
+
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Fecha de generación: ${new Date().toLocaleString()}`, 14, 52);
+
+            if (filterDateStart || filterDateEnd) {
+                doc.text(`Periodo: ${filterDateStart || 'Inicial'} hasta ${filterDateEnd || 'Actual'}`, 14, 58);
+            }
+
+            const tableColumn = ["Fecha", "Identificación", "Nombres", "Entidad", "Actividad"];
+            const tableRows = records.map(record => [
+                new Date(record.fecha).toLocaleDateString(),
+                record.cedula,
+                record.nombres,
+                record.entidad,
+                record.actividad
+            ]);
+
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                startY: 65,
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: {
+                    fillColor: [30, 64, 175],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold'
+                },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                margin: { top: 65 }
+            });
+
+            // Footer
+            const pageCount = (doc as any).internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(
+                    `Página ${i} de ${pageCount} - Generado por Sistema PQR`,
+                    doc.internal.pageSize.width / 2,
+                    doc.internal.pageSize.height - 10,
+                    { align: 'center' }
+                );
+            }
+
+            doc.save(`reporte_otras_gestiones_${new Date().toISOString().split('T')[0]}.pdf`);
+        } catch (err) {
+            console.error('Error al exportar PDF:', err);
+            alert('Error al generar el reporte PDF');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -139,6 +261,16 @@ export default function OtrasGestiones() {
                     <p className="text-slate-600">Registro y seguimiento de actividades adicionales.</p>
                 </div>
                 <div className="flex gap-2">
+                    {view === 'list' && (
+                        <button
+                            onClick={exportToPDF}
+                            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-green-700 transition-all shadow-md"
+                            title="Descargar PDF"
+                        >
+                            <Download size={20} />
+                            <span className="hidden sm:inline">PDF</span>
+                        </button>
+                    )}
                     <button
                         onClick={() => setShowConfig(true)}
                         className="p-2.5 text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg border border-slate-200 bg-white transition-all shadow-sm"
@@ -180,6 +312,88 @@ export default function OtrasGestiones() {
                 <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-xl flex items-center gap-2">
                     <Settings size={20} />
                     <span>No hay tipos de actividad configurados. Haga clic en el engranaje para añadir una actividad antes de registrar.</span>
+                </div>
+            )}
+
+            {view === 'list' && (
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                    {/* Barra de Filtros Superior */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="md:col-span-2 relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder="Buscar por Cédula, Nombre o Entidad..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                        </div>
+                        <div className="flex gap-2 items-center">
+                            <Calendar size={18} className="text-slate-400" />
+                            <input
+                                type="date"
+                                value={filterDateStart}
+                                onChange={(e) => setFilterDateStart(e.target.value)}
+                                className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Desde"
+                            />
+                        </div>
+                        <div className="flex gap-2 items-center">
+                            <Calendar size={18} className="text-slate-400" />
+                            <input
+                                type="date"
+                                value={filterDateEnd}
+                                onChange={(e) => setFilterDateEnd(e.target.value)}
+                                className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Hasta"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Barra de Controles e Info */}
+                    <div className="flex flex-wrap justify-between items-center gap-4 pt-2 border-t border-slate-100">
+                        <div className="flex items-center gap-4 flex-1">
+                            <div className="flex items-center gap-2 min-w-[200px]">
+                                <Filter size={18} className="text-slate-400" />
+                                <select
+                                    value={filterActivity}
+                                    onChange={(e) => setFilterActivity(e.target.value)}
+                                    className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                >
+                                    <option value="">Todas las Actividades</option>
+                                    {tipos.map(t => (
+                                        <option key={t.id} value={t.nombre}>{t.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-slate-500">Ordenar:</span>
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value as any)}
+                                    className="p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                >
+                                    <option value="fecha">Fecha</option>
+                                    <option value="nombres">Nombres</option>
+                                    <option value="entidad">Entidad</option>
+                                    <option value="cedula">Cédula</option>
+                                </select>
+                                <button
+                                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                    className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600"
+                                    title={sortOrder === 'asc' ? 'Ascendente' : 'Descendente'}
+                                >
+                                    {sortOrder === 'asc' ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm border border-blue-100">
+                            Resultados encontrados: {filteredCount}
+                        </div>
+                    </div>
                 </div>
             )}
 

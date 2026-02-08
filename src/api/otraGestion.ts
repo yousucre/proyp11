@@ -1,8 +1,8 @@
 import client from './client';
 
 export const otraGestionApi = {
-    getAll: async () => {
-        const response = await client.get('/otra-gestion');
+    getAll: async (params?: any) => {
+        const response = await client.get('/otra-gestion', { params });
         return response.data;
     },
     create: async (data: any) => {
@@ -31,6 +31,10 @@ export const otraGestionApi = {
     },
     getTiposActividad: async () => {
         const response = await client.get('/config/tipos-actividad');
+        return response.data;
+    },
+    getSystemConfig: async () => {
+        const response = await client.get('/config/system');
         return response.data;
     }
 };

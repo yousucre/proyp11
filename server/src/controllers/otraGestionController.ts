@@ -4,11 +4,50 @@ import { AuthRequest } from '../middleware/auth';
 
 export const getRecords = async (req: AuthRequest, res: Response) => {
     try {
-        console.log('Fetching all OtraGestion records...');
+        const { search, startDate, endDate, activity, sortBy, order } = req.query;
+
+        console.log('Fetching OtraGestion records with params:', req.query);
+
+        // Construir condiciones de filtro
+        const where: any = {};
+
+        if (search) {
+            const searchStr = String(search).toLowerCase();
+            where.OR = [
+                { cedula: { contains: searchStr, mode: 'insensitive' } },
+                { nombres: { contains: searchStr, mode: 'insensitive' } },
+                { entidad: { contains: searchStr, mode: 'insensitive' } }
+            ];
+        }
+
+        if (startDate || endDate) {
+            where.fecha = {};
+            if (startDate) where.fecha.gte = new Date(String(startDate));
+            if (endDate) {
+                const end = new Date(String(endDate));
+                end.setHours(23, 59, 59, 999); // Incluir todo el día final
+                where.fecha.lte = end;
+            }
+        }
+
+        if (activity) {
+            where.actividad = { equals: String(activity) };
+        }
+
+        // Construir ordenamiento
+        const orderBy: any = {};
+        if (sortBy) {
+            orderBy[String(sortBy)] = order === 'asc' ? 'asc' : 'desc';
+        } else {
+            orderBy.fecha = 'desc'; // Default sort
+        }
+
         const records = await prisma.otraGestion.findMany({
-            orderBy: { fecha: 'desc' }
+            where,
+            orderBy
         });
-        console.log(`Found ${records.length} records`);
+
+        console.log(`Found ${records.length} records matching criteria`);
         res.json(records);
     } catch (e) {
         console.error('Error fetching records:', e);
