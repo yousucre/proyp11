@@ -37,6 +37,10 @@ app.get('/', (req, res) => {
     res.send('PQR System Backend is running');
 });
 
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
 // Rutas
 import authRoutes from './routes/authRoutes';
 import pqrRoutes from './routes/pqrRoutes';
